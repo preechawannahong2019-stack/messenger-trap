@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trap Dashboard</title>
+<style>
+  body { font-family: sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; background: #f4f6f8; }
+  h1 { color: #1a3a5c; }
+  input, button { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
+  button { background: #1a3a5c; color: #fff; cursor: pointer; }
+  .card { background: #fff; border-radius: 10px; padding: 20px; margin-top: 20px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; }
+  th { background: #f0f4f8; }
+  .badge { background: #e74c3c; color: #fff; border-radius: 12px; padding: 2px 10px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>🪤 Trap Dashboard</h1>
+<div class="card">
+  <input id="code" placeholder="ใส่ Tracking Code เช่น slip-8842">
+  <button onclick="load()">ดูสถิติ</button>
+  <span class="badge" id="total"></span>
+</div>
+<div class="card">
+  <table>
+    <thead><tr><th>#</th><th>IP</th><th>Location</th><th>Device</th><th>Browser</th><th>OS</th><th>Time</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+<script>
+async function load() {
+  const code = document.getElementById('code').value.trim();
+  if (!code) return;
+  const d = await (await fetch('/api/stats/' + code)).json();
+  document.getElementById('total').textContent = d.total + ' clicks';
+  document.getElementById('rows').innerHTML = d.visits.map(function(v, i) {
+    return '<tr><td>' + (i + 1) + '</td><td>' + v.ip + '</td><td>' + (v.location || '-') +
+      '</td><td>' + v.device + '</td><td>' + v.browser + '</td><td>' + v.os + '</td><td>' + v.time + '</td></tr>';
+  }).join('');
+}
+setInterval(load, 5000);
+</script>
+</body>
+</html>
