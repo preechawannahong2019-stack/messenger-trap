@@ -1,0 +1,7 @@
+node_modules
+trap.db
+trap.db-wal
+trap.db-shm
+.env
+data
+
