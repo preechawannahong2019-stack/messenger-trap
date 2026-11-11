@@ -1,17 +1,19 @@
-﻿import express from "express";
+import express from "express";
 import dotenv from "dotenv";
 import db from "./db.js";
 import { notifyAdmin } from "./notify.js";
+import webhook from "./webhook.js";
 
 dotenv.config();
 const app = express();
 app.set("trust proxy", true);
 app.use(express.json());
 app.use(express.static("public"));
+app.use(webhook);
 
 app.get("/trap/:code", async (req, res) => {
   const link = db.prepare("SELECT * FROM links WHERE code = ?").get(req.params.code);
-  const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() -replace "::ffff:", "";
+  const ip = ((req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip).replace("::ffff:", "");
   const ua = req.headers["user-agent"] || "";
 
   const visit = {
@@ -83,4 +85,3 @@ app.get("/api/stats", (req, res) => {
 
 app.listen(process.env.PORT || 3000, () =>
   console.log("Server running on http://localhost:" + (process.env.PORT || 3000)));
-
