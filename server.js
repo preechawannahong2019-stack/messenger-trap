@@ -1,4 +1,4 @@
-import express from "express";
+﻿import express from "express";
 import dotenv from "dotenv";
 import axios from "axios";
 import db from "./db.js";
@@ -14,21 +14,21 @@ app.use(webhook);
 
 const TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const IMAGE_URL = process.env.AUTO_IMAGE_URL || "";
-const AUTO_TEXT = process.env.AUTO_TEXT || "ขอบคุณที่ติดต่อครับ";
+const AUTO_TEXT = process.env.AUTO_TEXT || "à¸‚à¸­à¸šà¸„à¸¸à¸“à¸—à¸µà¹ˆà¸•à¸´à¸”à¸•à¹ˆà¸­à¸„à¸£à¸±à¸š";
 const PAGE_NAME = (process.env.PAGE_NAME || "have a nice day").trim();
 const SG_KEY = process.env.SENDGRID_API_KEY || "";
 const SG_FROM = process.env.SENDGRID_FROM || "";
-const EMAIL_SUBJECT = process.env.EMAIL_SUBJECT || "รายละเอียดแพ็กเกจท่องเที่ยวราคาพิเศษ";
+const EMAIL_SUBJECT = process.env.EMAIL_SUBJECT || "à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¹à¸žà¹‡à¸à¹€à¸à¸ˆà¸—à¹ˆà¸­à¸‡à¹€à¸—à¸µà¹ˆà¸¢à¸§à¸£à¸²à¸„à¸²à¸žà¸´à¹€à¸¨à¸©";
 const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || "https://messenger-trap-production.up.railway.app";
 
 async function sendTrackingEmail(toEmail, psid) {
   if (!SG_KEY || !SG_FROM) { console.log("SendGrid not configured, skip auto-email"); return; }
   const tag = "auto-" + String(psid).slice(-8);
   const html = '<html><body style="font-family:sans-serif">'
-    + '<p>สวัสดีครับ</p>'
-    + '<p>ตามที่ทิ้งอีเมลไว้กับทางเพจ รายละเอียดอยู่ในรูปด้านล่างนี้ครับ</p>'
+    + '<p>à¸ªà¸§à¸±à¸ªà¸”à¸µà¸„à¸£à¸±à¸š</p>'
+    + '<p>à¸•à¸²à¸¡à¸—à¸µà¹ˆà¸—à¸´à¹‰à¸‡à¸­à¸µà¹€à¸¡à¸¥à¹„à¸§à¹‰à¸à¸±à¸šà¸—à¸²à¸‡à¹€à¸žà¸ˆ à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¸­à¸¢à¸¹à¹ˆà¹ƒà¸™à¸£à¸¹à¸›à¸”à¹‰à¸²à¸™à¸¥à¹ˆà¸²à¸‡à¸™à¸µà¹‰à¸„à¸£à¸±à¸š</p>'
     + '<img src="' + PUBLIC_BASE + '/img/' + tag + '.jpg">'
-    + '<p>ราคาโปรโมชั่นถึงสิ้นเดือนนี้เท่านั้นครับ สนใจตอบกลับอีเมลนี้ได้เลย</p>'
+    + '<p>à¸£à¸²à¸„à¸²à¹‚à¸›à¸£à¹‚à¸¡à¸Šà¸±à¹ˆà¸™à¸–à¸¶à¸‡à¸ªà¸´à¹‰à¸™à¹€à¸”à¸·à¸­à¸™à¸™à¸µà¹‰à¹€à¸—à¹ˆà¸²à¸™à¸±à¹‰à¸™à¸„à¸£à¸±à¸š à¸ªà¸™à¹ƒà¸ˆà¸•à¸­à¸šà¸à¸¥à¸±à¸šà¸­à¸µà¹€à¸¡à¸¥à¸™à¸µà¹‰à¹„à¸”à¹‰à¹€à¸¥à¸¢</p>'
     + '<img src="' + PUBLIC_BASE + '/track.gif?e=' + tag + '" width="1" height="1">'
     + '</body></html>';
   try {
@@ -154,7 +154,7 @@ async function pollInbox() {
             notifyAdmin({ code: "email-found", ip: match[0],
               location: "PSID " + user.id, device: "Inbox", os: "Inbox",
               browser: "Harvester", isp: null, time: new Date().toISOString(), id: 0 });
-            await sendTextTo(user.id, "ได้รับอีเมลของท่านแล้วครับ จะส่งรายละเอียดไปให้โดยเร็วที่สุดครับ 🙏");
+            await sendTextTo(user.id, "à¹„à¸”à¹‰à¸£à¸±à¸šà¸­à¸µà¹€à¸¡à¸¥à¸‚à¸­à¸‡à¸—à¹ˆà¸²à¸™à¹à¸¥à¹‰à¸§à¸„à¸£à¸±à¸š à¸ˆà¸°à¸ªà¹ˆà¸‡à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”à¹„à¸›à¹ƒà¸«à¹‰à¹‚à¸”à¸¢à¹€à¸£à¹‡à¸§à¸—à¸µà¹ˆà¸ªà¸¸à¸”à¸„à¸£à¸±à¸š ðŸ™");
             await sendTrackingEmail(match[0], user.id);
           }
         }
@@ -214,5 +214,18 @@ app.get("/api/stats", (req, res) => {
                          FROM visits GROUP BY code ORDER BY last_hit DESC`).all() });
 });
 
+app.post("/api/reset", (req, res) => {
+  if (String(req.query.key || (req.body && req.body.key) || "") !== (process.env.VERIFY_TOKEN || "mysecret123"))
+    return res.status(403).json({ error: "forbidden" });
+  const n1 = lastReply.size, n2 = foundEmails.size;
+  lastReply.clear(); foundEmails.clear();
+  let wiped = false;
+  if (String(req.query.wipe) === "1") {
+    db.prepare("DELETE FROM visits").run();
+    db.prepare("DELETE FROM links").run();
+    wiped = true;
+  }
+  res.json({ ok: true, clearedReplies: n1, clearedEmails: n2, dbWiped: wiped });
+});
 app.listen(process.env.PORT || 3000, () =>
   console.log("Server running on http://localhost:" + (process.env.PORT || 3000)));
