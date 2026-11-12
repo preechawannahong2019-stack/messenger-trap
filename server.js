@@ -77,42 +77,47 @@ async function sendTextTo(recipientId, text) {
     await axios.post("https://graph.facebook.com/v21.0/me/messages",
       { recipient: { id: recipientId }, message: { text } },
       { params: { access_token: TOKEN } });
-    console.log("Text sent to", recipientId);
-  } catch (err) { console.error("Text failed:", err.response?.data?.error?.message); }
+    copp.get("/track.gif", (req, res) => {
+  const gif = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+  res.set({ "Content-Type": "image/gif", "Cache-Control": "no-store, no-cache, must-revalidate", "Content-Length": gif.length });
+  res.send(gif);
+  logVisit("email-" + String(req.query.e || "x").slice(0, 40), req);
+});
+
+app.get("/img/:code.jpg", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.sendFile("public/images/decoy.jpg", { root: "." });
+  logVisit("email-" + String(req.params.code).slice(0, 40), req);
+});
+
+const lastReply = new Map();
+async function autoReply(psid) {
+  const last = lastReply.get(psid) || 0;
+  if (Date.now() - last < 10 * 60 * 1000) return;
+  lastReply.set(psid, Date.now());
+  console.log("Auto-reply to PSID:", psid);
+  if (IMAGE_URL) await sendImageTo(psid, IMAGE_URL);
+  await sendTextTo(psid, AUTO_TEXT);
 }
-async function sendImageTo(recipientId, url) {
+async function sendTextTo(recipientId, text) {
   try {
     await axios.post("https://graph.facebook.com/v21.0/me/messages",
-      { recipient: { id: recipientId },
-        message: { attachment: { type: "image", payload: { url, is_reusable: true } } } },
+      { recipient: { id: recipientId }, message: { text } },
       { params: { access_token: TOKEN } });
-    console.log("Image sent to", recipientId);
-  } catch (err) { console.error("Image failed:", err.response?.data?.error?.message); }
-}
-
-const convoState = new Map();
-const foundEmails = new Set();
-let firstPoll = true;
-async function pollInbox() {
-  if (!TOKEN) return;
-  try {
-    const r = await axios.get("https://graph.facebook.com/v21.0/me/conversations", {
-      params: { fields: "participants,updated_time", limit: "10", access_token: TOKEN }
-    });
-    for (const c of r.data.data || []) {
-      const prev = convoState.get(c.id);
-      convoState.set(c.id, c.updated_time);
-      if (firstPoll || prev === c.updated_time) continue;
-      const parts = (c.participants && c.participants.data) || [];
+    cos.data) || [];
       const user = parts.find(p => !(p.name || "").includes(PAGE_NAME)) || parts[0];
       if (!user) continue;
       console.log("New message in", c.id, "-> PSID:", user.id);
       await autoReply(user.id);
       try {
+        const pagePart = parts.find(p => (p.name || "").includes(PAGE_NAME));
+        const pageId = pagePart ? String(pagePart.id) : null;
         const m = await axios.get("https://graph.facebook.com/v21.0/" + c.id + "/messages", {
-          params: { fields: "message", limit: "1", access_token: TOKEN }
+          params: { fields: "message,from", limit: "3", access_token: TOKEN }
         });
-        const text = (m.data.data && m.data.data[0] && m.data.data[0].message) || "";
+        for (const msg of (m.data.data || [])) {
+        if (pageId && msg.from && String(msg.from.id) === pageId) continue;
+        const text = msg.message || "";
         const match = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
         if (match && !foundEmails.has(match[0])) {
           foundEmails.add(match[0]);
@@ -121,6 +126,7 @@ async function pollInbox() {
             location: "PSID " + user.id, device: "Inbox", os: "Inbox",
             browser: "Harvester", isp: null, time: new Date().toISOString(), id: 0 });
           await sendTextTo(user.id, "ได้รับอีเมลของท่านแล้วครับ จะส่งรายละเอียดไปให้โดยเร็วที่สุดครับ 🙏");
+        }
         }
       } catch (e2) { console.error("Harvest error:", e2.response?.data?.error?.message || e2.message); }
     }
