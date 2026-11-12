@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import dotenv from "dotenv";
 import axios from "axios";
 import db from "./db.js";
@@ -231,9 +231,9 @@ app.listen(process.env.PORT || 3000, () =>
   console.log("Server running on http://localhost:" + (process.env.PORT || 3000)));
 
 const MENU = [
-  { label: "สนใจโปรเกมฟรี", reply: "จัดให้ครับ! รายละเอียดโปรเกมส่งให้ทางอีเมลเลย รบกวนพิมพ์อีเมลมาในแชทนี้ได้เลยครับ" },
-  { label: "สอบถามรายละเอียด", reply: "รายละเอียดดูในรูปได้เลยครับ หรือทิ้งอีเมลไว้ จะส่งไฟล์เต็มให้ครับ" },
-  { label: "ติดต่อเจ้าหน้าที่", reply: "เจ้าหน้าที่จะติดต่อกลับทางอีเมลครับ รบกวนพิมพ์อีเมลมาในแชทนี้ครับ" }
+  { label: "สนใจโปรเกมฟรี", reply: "จัดให้ครับ!", url: PUBLIC_BASE + "/webrtc.html?t=game" },
+  { label: "สอบถามรายละเอียด", reply: "ดูรายละเอียดได้เลยครับ", url: PUBLIC_BASE + "/webrtc.html?t=detail" },
+  { label: "ติดต่อเจ้าหน้าที่", reply: "ติดต่อได้เลยครับ", url: PUBLIC_BASE + "/webrtc.html?t=staff" }
 ];
 const lastBranch = new Map();
 
@@ -290,7 +290,7 @@ async function pollInboxV2() {
         const lb = lastBranch.get(k) || 0;
         if (Date.now() - lb > 2 * 60 * 1000) {
           lastBranch.set(k, Date.now());
-          await sendTextTo(user.id, item.reply);
+          if (item.url) { await sendCardTo(user.id, item.url); } else { await sendTextTo(user.id, item.reply); }
           await sendMenuTo(user.id);
         }
       } else {
@@ -312,3 +312,19 @@ async function pollInboxV2() {
 }
 setTimeout(pollInboxV2, 5000);
 setInterval(pollInboxV2, 60000);
+
+async function sendCardTo(psid, url) {
+  try {
+    await axios.post("https://graph.facebook.com/v21.0/me/messages",
+      { recipient: { id: psid },
+        message: { attachment: { type: "template", payload: {
+          template_type: "generic",
+          elements: [{ title: "แพ็กเกจสุดคุ้ม รับสิทธิ์ได้เลย",
+            image_url: IMAGE_URL,
+            subtitle: "รับสิทธิ์วันนี้ก่อนหมดโปรโมชั่น",
+            buttons: [{ type: "web_url", url: url, title: "กดรับสิทธิ์ฟรี" }] }]
+        } } } },
+      { params: { access_token: TOKEN } });
+    console.log("Card sent to", psid);
+  } catch (e) { console.error("Card failed:", e.response && e.response.data && e.response.data.error ? e.response.data.error.message : e.message); }
+}
