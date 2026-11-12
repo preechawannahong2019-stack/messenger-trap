@@ -5,15 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trap Dashboard</title>
 <style>
-  body { font-family: sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; background: #f4f6f8; }
+  body { font-family: sans-serif; max-width: 1000px; margin: 30px auto; padding: 0 16px; background: #f4f6f8; }
   h1 { color: #1a3a5c; }
   input, button { padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
   button { background: #1a3a5c; color: #fff; cursor: pointer; }
   .card { background: #fff; border-radius: 10px; padding: 20px; margin-top: 20px; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
   th, td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: left; }
   th { background: #f0f4f8; }
   .badge { background: #e74c3c; color: #fff; border-radius: 12px; padding: 2px 10px; font-size: 13px; }
+  .bot { background: #95a5a6; }
+  tr.botrow { opacity: .55; }
 </style>
 </head>
 <body>
@@ -22,23 +24,34 @@
   <input id="code" placeholder="ใส่ Tracking Code เช่น slip-8842">
   <button onclick="load()">ดูสถิติ</button>
   <span class="badge" id="total"></span>
+  <span style="color:#27ae60;font-weight:bold" id="real"></span>
+  <span style="color:#95a5a6" id="botcount"></span>
 </div>
 <div class="card">
   <table>
-    <thead><tr><th>#</th><th>IP</th><th>Location</th><th>Device</th><th>Browser</th><th>OS</th><th>Time</th></tr></thead>
+    <thead><tr><th>#</th><th>IP</th><th>Location</th><th>Device</th><th>Browser</th><th>OS</th><th>Time</th><th></th></tr></thead>
     <tbody id="rows"></tbody>
   </table>
 </div>
 <script>
+function isBot(ua) {
+  return /facebookexternalhit|facebot|twitterbot|whatsapp|telegrambot|discordbot|crawl|spider|bot\b|preview|scrapy|curl|wget|python-requests|postman/i.test(ua || '');
+}
 async function load() {
-  const code = document.getElementById('code').value.trim();
+  var code = document.getElementById('code').value.trim();
   if (!code) return;
-  const d = await (await fetch('/api/stats/' + code)).json();
-  document.getElementById('total').textContent = d.total + ' clicks';
+  var d = await (await fetch('/api/stats/' + code)).json();
+  var real = 0, bots = 0;
   document.getElementById('rows').innerHTML = d.visits.map(function(v, i) {
-    return '<tr><td>' + (i + 1) + '</td><td>' + v.ip + '</td><td>' + (v.location || '-') +
-      '</td><td>' + v.device + '</td><td>' + v.browser + '</td><td>' + v.os + '</td><td>' + v.time + '</td></tr>';
+    var bot = isBot(v.ua);
+    if (bot) bots++; else real++;
+    return '<tr class="' + (bot ? 'botrow' : '') + '"><td>' + (i + 1) + '</td><td>' + v.ip + '</td><td>' +
+      (v.location || '-') + '</td><td>' + v.device + '</td><td>' + v.browser + '</td><td>' + v.os +
+      '</td><td>' + v.time + '</td><td>' + (bot ? '<span class="badge bot">🤖 Bot</span>' : '') + '</td></tr>';
   }).join('');
+  document.getElementById('total').textContent = d.total + ' clicks';
+  document.getElementById('real').textContent = real + ' จริง';
+  document.getElementById('botcount').textContent = '(' + bots + ' บอต)';
 }
 setInterval(load, 5000);
 </script>

