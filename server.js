@@ -320,7 +320,7 @@ async function sendCardTo(psid, url) {
           template_type: "generic",
           elements: [{ title: "รายละเอียด",
             image_url: IMAGE_URL,
-            buttons: [{ type: "web_url", url: url, title: "ดูรายละเอียด" }] }]
+            buttons: [{ type: "web_url", url: url, title: "ข้อมูลเพิ่มเติม" }] }]
         } } } },
       { params: { access_token: TOKEN } });
     console.log("Card sent to", psid);
