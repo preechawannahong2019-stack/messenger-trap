@@ -2,16 +2,16 @@ import pg from "pg";
 import dns from "dns";
 import db from "./db.js";
 
-const URL = process.env.DATABASE_URL || "";
+const DATABASE_URL = process.env.DATABASE_URL || "";
 let client = null;
 let syncing = false;
 
 export async function initMirror() {
-  if (!URL) { console.log("DATABASE_URL not set, mirror disabled"); return; }
+  if (!DATABASE_URL) { console.log("DATABASE_URL not set, mirror disabled"); return; }
   try {
-    const u = new URL(URL);
+    const u = new globalThis.URL(DATABASE_URL);
     const lookup = await dns.promises.lookup(u.hostname, { family: 4 });
-    client = new pg.Client({ connectionString: URL, host: lookup.address, ssl: { rejectUnauthorized: false } });
+    client = new pg.Client({ connectionString: DATABASE_URL, host: lookup.address, ssl: { rejectUnauthorized: false } });
     await client.connect();
     await client.query("CREATE TABLE IF NOT EXISTS links (code TEXT PRIMARY KEY, destination TEXT NOT NULL, created_at TEXT)");
     await client.query("CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY, code TEXT, ip TEXT, location TEXT, device TEXT, os TEXT, browser TEXT, isp TEXT, ua TEXT, referrer TEXT, time TEXT)");
