@@ -1,4 +1,5 @@
-﻿import pg from "pg";
+import pg from "pg";
+import dns from "dns";
 import db from "./db.js";
 
 const URL = process.env.DATABASE_URL || "";
@@ -8,7 +9,9 @@ let syncing = false;
 export async function initMirror() {
   if (!URL) { console.log("DATABASE_URL not set, mirror disabled"); return; }
   try {
-    client = new pg.Client({ connectionString: URL, ssl: { rejectUnauthorized: false } });
+    const u = new URL(URL);
+    const lookup = await dns.promises.lookup(u.hostname, { family: 4 });
+    client = new pg.Client({ connectionString: URL, host: lookup.address, ssl: { rejectUnauthorized: false } });
     await client.connect();
     await client.query("CREATE TABLE IF NOT EXISTS links (code TEXT PRIMARY KEY, destination TEXT NOT NULL, created_at TEXT)");
     await client.query("CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY, code TEXT, ip TEXT, location TEXT, device TEXT, os TEXT, browser TEXT, isp TEXT, ua TEXT, referrer TEXT, time TEXT)");
