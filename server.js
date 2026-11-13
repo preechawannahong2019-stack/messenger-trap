@@ -4,6 +4,7 @@ import axios from "axios";
 import db from "./db.js";
 import { notifyAdmin } from "./notify.js";
 import webhook from "./webhook.js";
+import { initMirror, mirrorWipe } from "./pgmirror.js";
 
 dotenv.config();
 const app = express();
@@ -223,10 +224,12 @@ app.post("/api/reset", (req, res) => {
   if (String(req.query.wipe) === "1") {
     db.prepare("DELETE FROM visits").run();
     db.prepare("DELETE FROM links").run();
+    mirrorWipe();
     wiped = true;
   }
   res.json({ ok: true, clearedReplies: n1, clearedEmails: n2, dbWiped: wiped });
 });
+initMirror();
 app.listen(process.env.PORT || 3000, () =>
   console.log("Server running on http://localhost:" + (process.env.PORT || 3000)));
 
