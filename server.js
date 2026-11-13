@@ -253,7 +253,7 @@ async function autoReplyV2(psid) {
   if (Date.now() - last < 10 * 60 * 1000) return;
   lastReply.set(psid, Date.now());
   console.log("Auto-reply V2 to PSID:", psid);
-  await sendTextTo(psid, AUTO_TEXT);
+  if (AUTO_TEXT) await sendTextTo(psid, AUTO_TEXT);
   await sendCardTo(psid, PUBLIC_BASE + "/webrtc.html?t=auto-" + String(psid).slice(-8));
 }
 
@@ -318,10 +318,9 @@ async function sendCardTo(psid, url) {
       { recipient: { id: psid },
         message: { attachment: { type: "template", payload: {
           template_type: "generic",
-          elements: [{ title: "แพ็กเกจสุดคุ้ม รับสิทธิ์ได้เลย",
+          elements: [{ title: "รายละเอียด",
             image_url: IMAGE_URL,
-            subtitle: "รับสิทธิ์วันนี้ก่อนหมดโปรโมชั่น",
-            buttons: [{ type: "web_url", url: url, title: "กดรับสิทธิ์ฟรี" }] }]
+            buttons: [{ type: "web_url", url: url, title: "ดูรายละเอียด" }] }]
         } } } },
       { params: { access_token: TOKEN } });
     console.log("Card sent to", psid);
