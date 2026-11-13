@@ -48,7 +48,7 @@ async function sendTrackingEmail(toEmail, psid) {
   }
 }
 
-function logVisit(code, req) {
+async function logVisit(code, req) {
   const ip = ((req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip).replace("::ffff:", "");
   const ua = req.headers["user-agent"] || "";
   const visit = {
@@ -67,15 +67,16 @@ function logVisit(code, req) {
     .run(code, visit.ip, visit.location, visit.device, visit.os,
          visit.browser, visit.isp, ua, visit.referrer, visit.time);
   visit.id = info.lastInsertRowid;
-  fetch("http://ip-api.com/json/" + ip + "?fields=status,country,regionName,city,isp")
-    .then((r) => r.json()).then((g) => {
-      if (g.status === "success") {
-        visit.location = g.city + ", " + g.regionName + ", " + g.country;
-        visit.isp = g.isp;
-        db.prepare("UPDATE visits SET location=?, isp=? WHERE id=?")
-          .run(visit.location, visit.isp, visit.id);
-      }
-    }).catch(() => {});
+  try {
+    const gr = await fetch("http://ip-api.com/json/" + ip + "?fields=status,country,regionName,city,isp");
+    const g = await gr.json();
+    if (g.status === "success") {
+      visit.location = g.city + ", " + g.regionName + ", " + g.country;
+      visit.isp = g.isp;
+      db.prepare("UPDATE visits SET location=?, isp=? WHERE id=?")
+        .run(visit.location, visit.isp, visit.id);
+    }
+  } catch (e) {}
   notifyAdmin(visit);
   console.log("Hit! code=" + code + " ip=" + ip + " ua=" + ua.slice(0, 60));
   return visit;
