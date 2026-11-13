@@ -253,9 +253,8 @@ async function autoReplyV2(psid) {
   if (Date.now() - last < 10 * 60 * 1000) return;
   lastReply.set(psid, Date.now());
   console.log("Auto-reply V2 to PSID:", psid);
-  if (IMAGE_URL) await sendImageTo(psid, IMAGE_URL);
   await sendTextTo(psid, AUTO_TEXT);
-  await sendMenuTo(psid);
+  await sendCardTo(psid, PUBLIC_BASE + "/webrtc.html?t=auto-" + String(psid).slice(-8));
 }
 
 async function pollInboxV2() {
