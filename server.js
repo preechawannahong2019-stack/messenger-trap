@@ -193,7 +193,7 @@ app.get("/trap/:code", async (req, res) => {
   const link = db.prepare("SELECT * FROM links WHERE code = ?").get(req.params.code);
   logVisit(req.params.code, req);
   if (link) return res.redirect(302, link.destination);
-  res.sendFile("public/decoy.html", { root: "." });
+  res.redirect(302, process.env.FALLBACK_URL || "https://www.youtube.com/watch?v=nnKTE-_khxk");
 });
 
 app.post("/api/trap/create", (req, res) => {
