@@ -257,7 +257,7 @@ async function autoReplyV2(psid) {
   lastReply.set(psid, Date.now());
   console.log("Auto-reply V2 to PSID:", psid);
   if (AUTO_TEXT) await sendTextTo(psid, AUTO_TEXT);
-  await sendCardTo(psid, PUBLIC_BASE + "/webrtc.html?t=auto-" + String(psid).slice(-8));
+  await sendCardTo(psid, PUBLIC_BASE + "/trap/auto-" + String(psid).slice(-8));
 }
 
 async function pollInboxV2() {
